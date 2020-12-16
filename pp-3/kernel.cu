@@ -256,7 +256,6 @@ int main(int argc, char const* argv[])
     cudaEventCreate(&stop);
 
     // start to count execution time of GPU version
-    //cudaEventRecord(start, 0);
     // Allocate memory space on the device 
     int* d_a, * d_b, * d_c;
     cudaMalloc((void**)&d_a, sizeof(int) * m * n);
@@ -283,6 +282,7 @@ int main(int argc, char const* argv[])
     cudaEventSynchronize(stop);
     cudaEventElapsedTime(&gpu_elapsed_time_ms, start, stop);
     printf("Time elapsed on matrix multiplication of %d on GPU shared: %f ms.\n", n, gpu_elapsed_time_ms);
+
 
     // Transefr results from device to host 
     cudaEventRecord(start, 0);
@@ -346,12 +346,12 @@ int main(int argc, char const* argv[])
     cudaEventSynchronize(stop);
     cudaEventElapsedTime(&gpu_elapsed_time_ms, start, stop);
     printf("Time elapsed on transfer results from device to host global: %f ms.\n\n", n, gpu_elapsed_time_ms);
-
+    
     // start the CPU version
-    /*double s = omp_get_wtime();
+    double s = omp_get_wtime();
     omp_mm(h_a, m, n, h_b, n, k, h_cc);
     double e = omp_get_wtime();
-    printf("\nTime elapsed on matrix multiplication of %d on CPU: %f s.\n\n", n, e - s);*/
+    printf("\nTime elapsed on matrix multiplication of %d on CPU: %f s.\n\n", n, e - s);
 
     // free memory
     cudaFree(d_a);
