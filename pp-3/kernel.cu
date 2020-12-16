@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <omp.h>
-#define BLOCK_SIZE 16
+#define BLOCK_SIZE 32
 
 __global__ void gpu_square_matrix_mult(int* d_a, int* d_b, int* d_result, int n)
 {
@@ -264,8 +264,13 @@ int main(int argc, char const* argv[])
     cudaMalloc((void**)&d_c, sizeof(int) * m * k);
 
     // copy matrix A and B and sum from host to device memory
+    cudaEventRecord(start, 0);
     cudaMemcpy(d_a, h_a, sizeof(int) * m * n, cudaMemcpyHostToDevice);
     cudaMemcpy(d_b, h_b, sizeof(int) * n * k, cudaMemcpyHostToDevice);
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&gpu_elapsed_time_ms, start, stop);
+    printf("Time of copying data from host to device memory %f ms\n", gpu_elapsed_time_ms);
 
     unsigned int grid_rows = (m + BLOCK_SIZE - 1) / BLOCK_SIZE;
     unsigned int grid_cols = (k + BLOCK_SIZE - 1) / BLOCK_SIZE;
@@ -275,38 +280,72 @@ int main(int argc, char const* argv[])
     cudaEventRecord(start, 0);
     gpu_square_matrix_mult << <dimGrid, dimBlock >> > (d_a, d_b, d_c, n);
     cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&gpu_elapsed_time_ms, start, stop);
+    printf("Time elapsed on matrix multiplication of %d on GPU shared: %f ms.\n", n, gpu_elapsed_time_ms);
 
     // Transefr results from device to host 
+    cudaEventRecord(start, 0);
     cudaMemcpy(h_c, d_c, sizeof(int) * m * k, cudaMemcpyDeviceToHost);
     cudaThreadSynchronize();
+    cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
-
-    // compute time elapse on GPU computing
     cudaEventElapsedTime(&gpu_elapsed_time_ms, start, stop);
-    printf("Time elapsed on matrix multiplication of %d on GPU shared: %f ms.\n\n", n, gpu_elapsed_time_ms);
+    printf("Time elapsed on transfer results from device to host shared: %f ms.\n\n", n, gpu_elapsed_time_ms);
 
 
+    cudaEventRecord(start, 0);
     cudaMemcpy(c_a, h_a, sizeof(int) * m * n, cudaMemcpyHostToDevice);
     cudaMemcpy(c_b, h_b, sizeof(int) * n * k, cudaMemcpyHostToDevice);
     cudaMemcpy(c_c, h_c, sizeof(int) * n * k, cudaMemcpyHostToDevice);
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&gpu_elapsed_time_ms, start, stop);
+    printf("Time of copying data from host to device memory constant %f ms\n", gpu_elapsed_time_ms);
+
     cudaEventRecord(start, 0);
     gpu_square_matrix_mult_cnst << <dimGrid, dimBlock >> > (c_a, c_b, c_c);
     cudaEventRecord(stop, 0);
     cudaThreadSynchronize();
     cudaEventSynchronize(stop);
     cudaEventElapsedTime(&gpu_elapsed_time_ms, start, stop);
-    printf("Time elapsed on matrix multiplication of %d on GPU constant: %f ms.\n\n", n, gpu_elapsed_time_ms);
+    printf("Time elapsed on matrix multiplication of %d on GPU constant: %f ms.\n", n, gpu_elapsed_time_ms);
 
-    
+    cudaEventRecord(start, 0);
+    cudaMemcpy(h_c, d_c, sizeof(int) * m * k, cudaMemcpyDeviceToHost);
+    cudaThreadSynchronize();
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&gpu_elapsed_time_ms, start, stop);
+    printf("Time elapsed on transfer results from device to host constant: %f ms.\n\n", n, gpu_elapsed_time_ms);
+
+
+    cudaEventRecord(start, 0);
     cudaMalloc((void**)&d_a, sizeof(int) * m * n);
     cudaMalloc((void**)&d_b, sizeof(int) * n * k);
     cudaMalloc((void**)&d_c, sizeof(int) * m * k);
     cudaMemcpy(d_a, h_a, sizeof(int) * m * n, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_b, h_b, sizeof(int) * n * k, cudaMemcpyHostToDevice);   
+    cudaMemcpy(d_b, h_b, sizeof(int) * n * k, cudaMemcpyHostToDevice);  
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&gpu_elapsed_time_ms, start, stop);
+    printf("Time of copying data from host to device memory global %f ms\n", gpu_elapsed_time_ms);
+
     cudaEventRecord(start, 0);
     gpu_square_matrix_mult_glbl << <dimGrid, dimBlock >> > (d_a, d_b, d_c, n);
     cudaEventRecord(stop, 0);
-    printf("Time elapsed on matrix multiplication of % d on GPU global: % f ms.\n\n", n, gpu_elapsed_time_ms);
+    cudaThreadSynchronize();
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&gpu_elapsed_time_ms, start, stop);
+    printf("Time elapsed on matrix multiplication of % d on GPU global: % f ms.\n", n, gpu_elapsed_time_ms);
+
+    cudaEventRecord(start, 0);
+    cudaMemcpy(h_c, d_c, sizeof(int)* m* k, cudaMemcpyDeviceToHost);
+    cudaThreadSynchronize();
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&gpu_elapsed_time_ms, start, stop);
+    printf("Time elapsed on transfer results from device to host global: %f ms.\n\n", n, gpu_elapsed_time_ms);
 
     // start the CPU version
     /*double s = omp_get_wtime();
